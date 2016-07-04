@@ -1,0 +1,110 @@
+<html><head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script type="text/javascript" src="./js/jquery.min.js"></script>
+    <script type="text/javascript" src="./js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="./js/underscore-min.js"></script>
+    <script type="text/javascript" src="./js/backbone-min.js"></script>
+    <link href="./css/font-awesome.min.css" rel="stylesheet" type="text/css">
+    <link href="./css/bootstrap.css" rel="stylesheet" type="text/css">
+    <script>
+
+            $(function() {
+                var Profile = Backbone.Model.extend();
+
+                var ProfileList = Backbone.Collection.extend({
+                    model: Profile,
+                    url: 'http://localhost:8080/baInfo'+location.search
+                });
+
+                var ProfileView = Backbone.View.extend({
+                    el: "#profiles",
+                    template: _.template($('#profileTemplate').html()),
+                    render: function(eventName) {
+                        _.each(this.model.models, function(profile){
+                            var profileTemplate = this.template(profile.toJSON());
+                            $(this.el).append(profileTemplate);
+                        }, this);
+                        return this;
+                    }
+                });
+
+                var profiles = new ProfileList();    
+                var profilesView = new ProfileView({model: profiles});
+                profiles.fetch({
+					success: function() {
+                    	profilesView.render();
+                    }
+                });
+            });
+        </script>
+  </head><body>
+  <div id="profiles">数据不存在</div>
+  <script id="profileTemplate" type="text/template">
+    <div class="section">
+      <div class="container">
+        <div class="row">
+          <div class="col-md-12">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th class="info">组织机构代码：<%= strGroupCode %></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>名称：<%= strName %></td>
+                </tr>
+                <tr>
+                  <td>地址：<%= strAddr %></td>
+                </tr>
+                <tr>
+                  <td>区域：<%= strZone %></td>
+                </tr>
+                <tr>
+                  <td>行业：<%= strUnitType %></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <% for(var i = 0; i < listEqp.length; i++) { %>
+      <% var eqp = listEqp[i] %>
+      <div class="container">
+        <div class="row">
+          <div class="col-md-12">
+            <table class="table">
+              <tbody>
+                <tr>
+                <% if(eqp.strBAStatus == "已备案"){ %>
+                  <td class="success">备案状态：<%= eqp.strBAStatus %></td>
+                <% }else{ %>
+                  <td class="danger">备案状态：<%= eqp.strBAStatus %></td>
+                <% } %>
+                </tr>
+                <tr>
+                  <td>设备ID：<%= eqp.strId %></td>
+                </tr>
+                <tr>
+                  <td>备案时间：2016-03-03 12:33:22</td>
+                </tr>
+                <tr>
+                  <td>设备状态：<%= eqp.strDataStatus %></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <% } %>
+      <div class="container">
+        <div class="row">
+          <div class="col-md-12 text-center">
+            <a class="btn btn-link" href="baInfoQuery.html">返回</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    </script>
+</body></html>
