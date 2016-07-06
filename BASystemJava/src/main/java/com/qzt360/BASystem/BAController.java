@@ -3,6 +3,7 @@ package com.qzt360.BASystem;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.log4j.Logger;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class BAController {
+	private static Logger logger = Logger.getLogger(BAController.class);
 
 	@CrossOrigin(origins = "http://localhost:8081")
 	@RequestMapping("/baInfo")
@@ -19,7 +21,8 @@ public class BAController {
 		} else {
 			// strId为组织结构代码strGroupCode
 		}
-		System.out.println("strId:" + strId);
+		System.out.println("system strId:" + strId);
+		logger.debug("logger strId:" + strId);
 		EqpInfo eqp = new EqpInfo("11:22:33:44:55:66", "正常", "已备案", "2016-03-03 12:33:22");
 		List<EqpInfo> listEqp = new ArrayList<EqpInfo>();
 		listEqp.add(eqp);
@@ -34,6 +37,7 @@ public class BAController {
 	@RequestMapping("/eqpInfo")
 	public EqpInfo getEqpInfo(@RequestParam(value = "strEqpId", defaultValue = "11:22:33:44:55:66") String strEqpId) {
 		System.out.println("strEqpId:" + strEqpId);
+		logger.debug("strEqpId:" + strEqpId);
 		// UnitInfo unit = new UnitInfo("0632323-2", "龙光地产股份有限公司汕头龙光喜来登酒店",
 		// "汕头市龙湖区金霞街道长平路龙光世纪大厦4层机房内", "汕头市－龙湖区", "酒店");
 		// UnitInfo unitNull = new UnitInfo("未知", "未知", "未知", "未知", "未知");
