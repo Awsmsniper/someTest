@@ -12,14 +12,20 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class BAController {
 	private static Logger logger = Logger.getLogger(BAController.class);
+	private static BAManager bam = new BAManager();
 
-	@CrossOrigin(origins = "http://localhost:8081")
+	@CrossOrigin(origins = "http://172.16.29.29:36160")
 	@RequestMapping("/baInfo")
 	public BAInfo getBAInfo(@RequestParam(value = "strId", defaultValue = "11:22:33:44:55:66") String strId) {
 		if (strId.split(":").length == 6) {
 			// strId为MAC
 		} else {
 			// strId为组织结构代码strGroupCode
+		}
+
+		BAInfo baInfo = bam.getBAInfoById(strId);
+		if (baInfo != null) {
+			return baInfo;
 		}
 		System.out.println("system strId:" + strId);
 		logger.debug("logger strId:" + strId);
