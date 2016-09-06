@@ -13,6 +13,8 @@ public class SLF4JTest {
 		// TODO Auto-generated method stub
 		String strName = "zhaogj";
 		log.info("I love you {}", strName);
+		UserInfo user = new UserInfo();
+		user.setStrName("");
 	}
 
 }

@@ -6,7 +6,8 @@ public class JSONClientTest extends TestCase {
 
 	public void testGetSS() {
 		JSONClient jsonC = new JSONClient();
-		jsonC.getSS();
+		//jsonC.getSS();
+		jsonC.getNetLogList();
 	}
 
 }
