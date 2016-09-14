@@ -1,19 +1,18 @@
 package org.after90.JavaAlgorithm;
 
-
 import org.junit.Before;
 import org.junit.Test;
 
-public class Dom4jTestTest {
-	private Dom4jTest d4j = new Dom4jTest();
+public class GuavaTestTest {
+	private GuavaTest gt = new GuavaTest();
 
 	@Before
 	public void setUp() throws Exception {
 	}
 
 	@Test
-	public void testWriteXmlFile() {
-		d4j.writeXmlFile();
+	public void testDoTestSplitter() {
+		gt.doTestSplitter();
 	}
 
 }

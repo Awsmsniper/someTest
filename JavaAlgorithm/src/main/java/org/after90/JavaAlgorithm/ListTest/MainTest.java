@@ -17,9 +17,9 @@ public class MainTest {
 		Thread t3 = new AddThread();
 		t3.setName("t3");
 		t3.start();
-		Thread t = new CountThread();
-		t.setName("t");
-		t.start();
+		//Thread t = new CountThread();
+		//t.setName("t");
+		//t.start();
 		Thread t4 = new RemoveThread();
 		t4.setName("t4");
 		t4.start();

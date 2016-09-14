@@ -5,9 +5,11 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class AddThread extends Thread {
 	public void run() {
+		long lStart = System.currentTimeMillis();
 		for (int i = 0; i < 1000000; i++) {
 			PriPara.listBox.add(this.getName() + i);
 		}
-		log.info("thread:" + this.getName() + "add 1000000");
+		long lInterval = System.currentTimeMillis() - lStart;
+		log.info("thread:{}, lInterval:{}", this.getName(), lInterval);
 	}
 }
