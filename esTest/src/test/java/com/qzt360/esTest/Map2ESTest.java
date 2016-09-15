@@ -12,7 +12,12 @@ public class Map2ESTest {
 
 	@Test
 	public void testMap2ES() {
-		m2e.map2ES();
+		// fail("Not yet implemented");
+	}
+
+	@Test
+	public void testEs2Map() {
+		m2e.es2Map();
 	}
 
 }

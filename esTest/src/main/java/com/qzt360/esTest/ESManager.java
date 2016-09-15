@@ -65,86 +65,9 @@ public class ESManager {
 		this.nConcurrentRequests = nConcurrentRequests;
 	}
 
-	public static void main(String[] args) {
-		// setup();
-		// String strIndex = "im_20160303";
-		// String strType = "im";
-
-		// 创建空index
-		// client.admin().indices().prepareCreate(strIndex).get();
-		// create index
-		// logger.info("zgj:" +
-		// client.admin().indices().prepareExists(strIndex).get());
-		// IndicesAdminClient iac = client.admin().indices();
-		// client.admin().indices().
-		// if (client.admin().indices().prepareExists(strIndex) != null) {
-		// client.admin().indices().prepareCreate(strIndex)
-		// .addMapping(strType,
-		// "{\n" + " \"" + strType + "\": {\n" + " \"properties\": {\n" +
-		// "\"context\": {\n"
-		// + " \"type\": \"string\",\n" + " \"index\": \"not_analyzed\"\n" + "
-		// },\n"
-		// + " \"title\": {\n" + " \"type\": \"string\",\n" + " \"index\":
-		// \"not_analyzed\"\n"
-		// + " }\n" + " }\n" + " }\n" + " }")
-		// .get();
-		// // }
-		// 批量入库
-		// client.prepareIndex("index_01", "type_01").get();
-		// for (int i = 0; i < 10; i++) {
-		// Map<String, Object> json = new HashMap<String, Object>();
-		// json.put("title", "user" + i);
-		// json.put("date_create", new Date());
-		// json.put("context", "trying out Elasticsearch" + i);
-		// // update(json, strIndex, strType, "im_20160303_0");
-		// bulkProcessor.add(new IndexRequest(strIndex, strType, "id_" +
-		// i).source(json));
-		// }
-		// 查询
-		// QueryBuilder qb1 = QueryBuilders.termQuery("user", "user8");
-		// QueryBuilder qb2 = QueryBuilders.matchQuery("user", "user8");
-		// // QueryBuilder qb2 = QueryBuilders.fil
-		// QueryBuilder qb3 =
-		// QueryBuilders.boolQuery().must(QueryBuilders.termQuery("user",
-		// "user1"));
-		// // .must(QueryBuilders.termQuery("user", "user2"));
-		// // .mustNot(QueryBuilders.termQuery("user", "user3"))
-		// // .mustNot(QueryBuilders.termQuery("user",
-		// // "user4")).should(QueryBuilders.termQuery("user", "user5"));
-		// QueryBuilder qb4 = QueryBuilders.filteredQuery(qb1,
-		// QueryBuilders.rangeQuery("age").from(20).to(30).includeLower(true).includeUpper(false));
-		//
-		// WildcardQueryBuilder wqb = new WildcardQueryBuilder("user", "*ser*");
-		// QueryBuilder qb5 = QueryBuilders.boolQuery().should(wqb);
-		// QueryBuilder qb6 = QueryBuilders.boolQuery().must(wqb);
-		// SearchResponse response =
-		// client.prepareSearch(strIndex).setTypes(strType)
-		// .setSearchType(SearchType.DFS_QUERY_THEN_FETCH).setQuery(qb6).setFrom(0).setSize(100).setExplain(true)
-		// .execute().actionGet();
-		//
-		// for (SearchHit hit : response.getHits()) {
-		// Map<String, Object> source = hit.getSource();
-		// // logger.info("user: " + source.get("user"));
-		// logger.info("source: " + source.toString());
-		// }
-		// WildcardQueryBuilder wqb = new WildcardQueryBuilder("title", "*se*");
-		// QueryBuilder qb = QueryBuilders.boolQuery().should(wqb);
-		// SearchResponse response =
-		// client.prepareSearch(strIndex).setTypes(strType)
-		// .setSearchType(SearchType.DFS_QUERY_THEN_FETCH).setQuery(qb).setFrom(0).setSize(100).setExplain(true)
-		// .execute().actionGet();
-		//
-		// for (SearchHit hit : response.getHits()) {
-		// Map<String, Object> source = hit.getSource();
-		// // logger.info("user: " + source.get("user"));
-		// logger.info("source: " + source.toString());
-		// }
-		// cleanup();
-	}
-
 	private void admin(IndicesAdminClient iac) {
 		// 定义IM数据模版
-		PutIndexTemplateRequest pitr = new PutIndexTemplateRequest("im").template("im*");
+		PutIndexTemplateRequest pitr = new PutIndexTemplateRequest("index_test").template("index_test*");
 		// setting
 		// pitr.settings(new MapBuilder<String,
 		// Object>().put("number_of_shards", 6).put("number_of_replicas", 1)
@@ -157,7 +80,7 @@ public class ESManager {
 		defaultMapping.put("numeric_detection", false);
 		defaultMapping.put("dynamic_templates", new Object[] {
 				new MapBuilder<String, Object>()
-						.put("date_tpl", new MapBuilder<String, Object>().put("match", "date*")
+						.put("date_tpl", new MapBuilder<String, Object>().put("match", "dt*")
 								.put("mapping",
 										new MapBuilder<String, Object>().put("type", "date")
 												.put("index", "not_analyzed").put("doc_values", true).map())
