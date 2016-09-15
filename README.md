@@ -1,1 +1,2 @@
-Java语言编写的一些测试程序
+# someTest
+maven构建，各类测试程序
