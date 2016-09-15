@@ -19,7 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 public class JSONClient {
 	public void submitIds() {
 		CloseableHttpClient httpclient = HttpClients.createDefault();
-		HttpPost httpPost = new HttpPost("http://gdba.qzt360.com:36162/submitIds");
+		HttpPost httpPost = new HttpPost("http://localhost:36162/submitIds");
 		List<NameValuePair> formparams = new ArrayList<NameValuePair>();
 		formparams.add(new BasicNameValuePair("strSN", "helpmehelpyou"));
 		formparams.add(new BasicNameValuePair("strIds", "22655080,QQ;15010281799,Tel"));
@@ -52,7 +52,7 @@ public class JSONClient {
 
 	public void getIdsDirect() {
 		CloseableHttpClient httpclient = HttpClients.createDefault();
-		HttpPost httpPost = new HttpPost("http://gdba.qzt360.com:36162/getIdsDirect");
+		HttpPost httpPost = new HttpPost("http://localhost:36162/getIdsDirect");
 		List<NameValuePair> formparams = new ArrayList<NameValuePair>();
 		formparams.add(new BasicNameValuePair("strSN", "helpmehelpyou"));
 		formparams.add(new BasicNameValuePair("strId", "22655080,QQ"));
