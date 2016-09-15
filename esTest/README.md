@@ -1,1 +1,5 @@
 maven构建，java语言编写的es测试程序
+测试用ES信息：
+启动在本地
+strClusterName:qzt360esmacbookpro
+strTransportHostName:localhost
