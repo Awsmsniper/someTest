@@ -44,6 +44,8 @@ public class ReadZipFile {
 			}
 		}
 		zin.closeEntry();
+		zin.close();
+		zf.close();
 	}
 
 	/**
