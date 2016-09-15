@@ -1,0 +1,607 @@
+package com.qzt360;
+
+import static org.elasticsearch.index.query.FilterBuilders.andFilter;
+import static org.elasticsearch.index.query.FilterBuilders.rangeFilter;
+
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateRequest;
+import org.elasticsearch.action.bulk.BulkProcessor;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.action.update.UpdateResponse;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.client.IndicesAdminClient;
+import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.common.collect.MapBuilder;
+import org.elasticsearch.common.collect.Maps;
+import org.elasticsearch.common.joda.time.DateTime;
+import org.elasticsearch.common.lang3.StringUtils;
+import org.elasticsearch.common.settings.ImmutableSettings;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.InetSocketTransportAddress;
+import org.elasticsearch.common.unit.ByteSizeUnit;
+import org.elasticsearch.common.unit.ByteSizeValue;
+import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.FilterBuilder;
+import org.elasticsearch.index.query.FilterBuilders;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.aggregations.AggregationBuilders;
+import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogram;
+import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogram.Bucket;
+import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogram.Interval;
+import org.elasticsearch.search.aggregations.bucket.histogram.Histogram.Order;
+import org.elasticsearch.search.aggregations.metrics.InternalNumericMetricsAggregation.SingleValue;
+import org.elasticsearch.search.sort.SortOrder;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import com.ksc.cdn.datacomponent.Constants;
+import com.ksc.cdn.datacomponent.model.DetectRequest;
+import com.ksc.cdn.datacomponent.model.NodeMeta;
+import com.ksc.cdn.datacomponent.model.TimeSeries;
+import com.ksc.cdn.datacomponent.utils.DateUtils;
+import com.ksc.cdn.datacomponent.utils.ESUtils;
+import com.ksc.cdn.datacomponent.utils.SmsUtil;
+
+@Component
+@Slf4j
+public class ElasticService {
+
+    @Value("${es.servers}")
+    public String          es;
+
+    public TransportClient client;
+
+    private Lock           initLock = new ReentrantLock();
+    public BulkProcessor       bulkProcessor;
+
+    public Client init() {
+
+        if (client == null) {
+            initLock.lock();
+            try {
+                if (client == null) {
+                    Settings settings = ImmutableSettings.settingsBuilder().put("cluster.name", "ksyunes")
+                            .put("client.transport.sniff", true).build();
+                    client = new TransportClient(settings);
+                    String[] ess = es.split(",");
+                    for (String esServer : ess) {
+                        client.addTransportAddress(new InetSocketTransportAddress(esServer, 9300));
+                    }
+                    IndicesAdminClient iac = client.admin().indices();
+                    admin(iac);
+                }
+            } catch (Exception e) {
+                log.warn("elastic search client init error : ", e);
+            } finally {
+                initLock.unlock();
+            }
+        }
+        if(bulkProcessor==null){
+            bulkProcessor = BulkProcessor.builder(client, new BulkProcessor.Listener() {
+
+                @Override
+                public void beforeBulk(long executionId, BulkRequest request) {
+
+                }
+
+                @Override
+                public void afterBulk(long executionId, BulkRequest request, BulkResponse response) {
+
+                }
+
+                @Override
+                public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
+
+                }
+            }).setBulkActions(10000).setBulkSize(new ByteSizeValue(10, ByteSizeUnit.MB)).setFlushInterval(TimeValue.timeValueSeconds(10))
+                    .setConcurrentRequests(2).build();//两个提交，10S延迟
+        }
+        return client;
+    }
+
+    private static void admin(IndicesAdminClient iac) {
+
+        PutIndexTemplateRequest pitr = new PutIndexTemplateRequest("cdn_kc").template("cdn_kc*");
+        /* settings */
+        pitr.settings(new MapBuilder<String, Object>().put("number_of_shards", 6).put("number_of_replicas", 1)
+                .put("refresh_interval", "1s").put("merge.policy.floor_segment", "2mb").map());
+        Map<String, Object> defaultMapping = new HashMap<String, Object>();
+        /* 关闭_all */
+        defaultMapping.put("_all", new MapBuilder<String, Object>().put("enabled", false).map());
+        defaultMapping.put("numeric_detection", false);
+        defaultMapping.put(
+                "dynamic_templates",
+                new Object[] {
+                        new MapBuilder<String, Object>().put(
+                                "date_tpl",
+                                new MapBuilder<String, Object>()
+                                        .put("match", "date*")
+                                        .put("mapping",
+                                                new MapBuilder<String, Object>().put("type", "date").put("format", "yyyyMMdd'T'HHmmssZ")
+                                                        .put("index", "not_analyzed").put("doc_values", true).map()).map()).map(),
+                        new MapBuilder<String, Object>().put(
+                                "all_tpl",
+                                new MapBuilder<String, Object>()
+                                        .put("match", "*")
+                                        .put("mapping",
+                                                new MapBuilder<String, Object>().put("type", "{dynamic_type}").put("index", "not_analyzed")
+                                                        .put("doc_values", true).map()).map()).map() });
+        pitr.mapping("_default_", defaultMapping);
+        
+        
+        pitr = new PutIndexTemplateRequest("cdn_droplet").template("cdn_droplet*");
+        /* settings */
+        pitr.settings(new MapBuilder<String, Object>().put("number_of_shards", 6).put("number_of_replicas", 1)
+                .put("refresh_interval", "1s").put("merge.policy.floor_segment", "2mb").map());
+        Map<String, Object> defaultMapping1 = new HashMap<String, Object>();
+        /* 关闭_all */
+        defaultMapping1.put("_all", new MapBuilder<String, Object>().put("enabled", false).map());
+        defaultMapping1.put("numeric_detection", false);
+        defaultMapping1.put(
+                "dynamic_templates",
+                new Object[] {
+                        new MapBuilder<String, Object>().put(
+                                "date_tpl",
+                                new MapBuilder<String, Object>()
+                                        .put("match", "date*")
+                                        .put("mapping",
+                                                new MapBuilder<String, Object>().put("type", "date").put("format", "yyyyMMdd'T'HHmmssZ")
+                                                        .put("index", "not_analyzed").put("doc_values", true).map()).map()).map(),
+                        new MapBuilder<String, Object>().put(
+                                "all_tpl",
+                                new MapBuilder<String, Object>()
+                                        .put("match", "*")
+                                        .put("mapping",
+                                                new MapBuilder<String, Object>().put("type", "{dynamic_type}").put("index", "not_analyzed")
+                                                        .put("doc_values", true).map()).map()).map() });
+        pitr.mapping("_default_", defaultMapping1);
+        
+        iac.putTemplate(pitr);
+    }
+
+    /**
+     * 如果是新增 返回true 如果是修改返回false
+     * 
+     * @param content
+     * @param index
+     * @param type
+     * @param id
+     */
+    public boolean save(Map<String, Object> content, String index, String type, String id) {
+
+        UpdateResponse resp = client.update(new UpdateRequest(index, type, id).doc(content).upsert(content)).actionGet();
+        if (resp.isCreated())
+            return true;
+        return false;
+    }
+
+    /**
+     * 如果是新增 返回true 如果是修改返回false
+     * 
+     * @param content
+     * @param index
+     * @param type
+     * @param id
+     */
+    public boolean save(Map<String, Object> content, String index, String type, String id, String routing) {
+
+        UpdateResponse resp = client.update(new UpdateRequest(index, type, id).routing(routing).doc(content).upsert(content)).actionGet();
+        if (resp.isCreated())
+            return true;
+        return false;
+    }
+
+    /**
+     * 计算每5分钟峰值带宽 根据peakType确定计算峰值的方式(最大，平均)
+     * 
+     * @param node
+     * @param start
+     * @param end
+     */
+    public void save5MinBandwitdh(NodeMeta node, long start, long end) {
+        FilterBuilder filter = andFilter(rangeFilter("date").from(start).to(end));
+        SearchResponse response = client
+                .prepareSearch(ESUtils.indicesByDateRange(start, end))
+                .setTypes("base")
+                .setQuery(QueryBuilders.filteredQuery(QueryBuilders.matchAllQuery(), filter))
+                .setSize(0)
+                .addAggregation(
+                        AggregationBuilders.dateHistogram("bw").field("date").interval(Interval.minutes(5))
+                                .subAggregation(AggregationBuilders.avg("avg").field(node.getOutBandWidthOriField()))).execute()
+                .actionGet();
+        DateHistogram dh5min = (DateHistogram) response.getAggregations().get("bw");
+        for (Bucket b : dh5min.getBuckets()) {
+            Double value = ((SingleValue) b.getAggregations().iterator().next()).value() / 1000000;
+            if (Double.isInfinite(value) || Double.isNaN(value)) {
+                // TODO 判断为什么没数据 取zabbix数据程序异常 or 节点数据异常
+                continue;
+            }
+            DateTime time = b.getKeyAsDate();
+            Map<String, Object> point = new HashMap<>();
+            point.put("obw", value.intValue());
+            point.put("date", time.getMillis());
+            /**
+             * 只在12小时数据中添加保底 上联数据
+             */
+            if ((time.getMillis() - 8 * 1000 * 60 * 60) % (1000 * 60 * 60 * 12) == 0) {
+                point.put("outBandWidthUpperLimit", node.getOutBandWidthUpperLimit());
+                point.put("outBandWidthLowerLimit", node.getOutBandWidthLowerLimit());
+            }
+            point.put("name", node.getName() + "_" + node.getLineType());
+            String id = node.getName() + "_" + node.getLineType() + "_" + time.getMillis();
+            save(point, Constants.CDN_KC_BASE + "_" + DateUtils.yyyyMM(time), "bandwidth", id);
+        }
+    }
+
+    public void caculate95(NodeMeta node, long start, long end) {
+        String name = node.getName() + "_" + node.getLineType();
+        // 查询所有节点的数据
+        Calendar queryStart = Calendar.getInstance();
+        queryStart.setTime(new Date((start / 1000 / 60 / 60 / 24) * 1000 * 60 * 60 * 24));
+        queryStart.set(Calendar.DAY_OF_MONTH, 1);
+        for (; queryStart.getTimeInMillis() < end; queryStart.add(Calendar.MONTH, 1)) {
+            BoolQueryBuilder bool = QueryBuilders.boolQuery();
+            bool.must(QueryBuilders.rangeQuery("date").gte(queryStart.getTimeInMillis()).lt(end));
+            bool.must(QueryBuilders.termQuery("name", name));
+            SearchResponse response = client
+                    .prepareSearch(Constants.CDN_KC_BASE + "_" + DateUtils.yyyyMM(new DateTime(queryStart.getTimeInMillis())))
+                    .setTypes("bandwidth").setQuery(bool).addSort("date", SortOrder.ASC).setFrom(0).setSize(Integer.MAX_VALUE).execute()
+                    .actionGet();
+            SearchHits hits = response.getHits();
+            Set<Integer> set = new TreeSet<Integer>();
+            for (int i = 0; i < hits.getHits().length; i++) {
+                try {
+                    Map<String, Object> source = hits.getHits()[i].getSource();
+                    if (source.containsKey("obw")) {
+                        set.add((Integer) (source.get("obw")));
+                        if ((long) source.get("date") >= start) {
+                            Integer _95peek = 0;
+                            if (set.size() < 20)
+                                _95peek = (Integer) set.toArray()[set.size() - 1];
+                            else
+                                _95peek = (Integer) set.toArray()[(int) Math.ceil(set.size() * 0.95)];
+                            Map<String, Object> content = Maps.newHashMap();
+                            content.put("obw_m95p", _95peek.intValue());
+                            save(content, hits.getHits()[i].getIndex(), hits.getHits()[i].getType(), hits.getHits()[i].getId());
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("cac m95 error ", e);
+                }
+            }
+        }
+    }
+
+    public List<TimeSeries> searchBandwidth(NodeMeta node, long start, long end, boolean isAll) {
+
+        BoolQueryBuilder bool = QueryBuilders.boolQuery();
+        bool.must(QueryBuilders.rangeQuery("date").gte(start).lt(end));
+        SearchResponse response = client
+                .prepareSearch(ESUtils.indicesByDateRange(start, end))
+                .setTypes("base")
+                .setQuery(bool)
+                .setSize(0)
+                .addSort("date", SortOrder.ASC)
+                .addAggregation(
+                        AggregationBuilders
+                                .dateHistogram("bandWidthPerMin")
+                                .field("date")
+                                .interval(Interval.minutes(1))
+                                .subAggregation(
+                                        AggregationBuilders.avg("avg").field(
+                                                isAll ? "traffic_sum_out[cdn_traffic_all]Traffic-of-CDN-ALL-OUT" : node
+                                                        .getOutBandWidthOriField()))).execute().actionGet();
+        DateHistogram bandWidthPerMin = (DateHistogram) response.getAggregations().get("bandWidthPerMin");
+        List<TimeSeries> aggVal = new ArrayList<TimeSeries>();
+        for (Bucket b : bandWidthPerMin.getBuckets()) {
+            Double value = ((SingleValue) b.getAggregations().iterator().next()).value() / 1000000;
+            if (Double.isInfinite(value) || Double.isNaN(value)) {
+                // TODO 判断为什么没数据 取zabbix数据程序异常 or 节点数据异常
+                b.getKeyAsDate();
+                continue;
+            }
+            TimeSeries timeSeries = new TimeSeries();
+            timeSeries.setTime(b.getKeyAsNumber().longValue());
+            timeSeries.setValue(Math.floor(value) + 0.0);
+            while (aggVal.size() > 0 && (aggVal.get(aggVal.size() - 1).getTime() + 60 * 1000) < timeSeries.getTime()) {
+                TimeSeries addTimeSeries = new TimeSeries();
+                addTimeSeries.setTime(aggVal.get(aggVal.size() - 1).getTime() + 60 * 1000);
+                addTimeSeries.setValue((aggVal.get(aggVal.size() - 1).getValue() + timeSeries.getValue()) / 2);
+                aggVal.add(addTimeSeries);
+            }
+            aggVal.add(timeSeries);
+        }
+        log.info("bandwidth time series length {}", aggVal.size());
+        return aggVal;
+    }
+
+    public void calcDayPeakMonthAvg(NodeMeta node, long start, long end) {
+
+        String name = node.getName() + "_" + node.getLineType();
+        Calendar queryStart = Calendar.getInstance();
+        queryStart.setTime(new Date((start / 1000 / 60 / 60 / 24) * 1000 * 60 * 60 * 24));
+        queryStart.set(Calendar.DAY_OF_MONTH, 1);
+        for (; queryStart.getTimeInMillis() < end; queryStart.add(Calendar.MONTH, 1)) {
+            BoolQueryBuilder bool = QueryBuilders.boolQuery();
+            bool.must(QueryBuilders.rangeQuery("date").gte(queryStart.getTimeInMillis()).lt(end));
+            bool.must(QueryBuilders.termQuery("name", name));
+            SearchResponse response = client
+                    .prepareSearch(Constants.CDN_KC_BASE + "_" + DateUtils.yyyyMM(new DateTime(queryStart.getTimeInMillis())))
+                    .setTypes("bandwidth")
+                    .setQuery(bool)
+                    .setSize(0)
+                    .addSort("date", SortOrder.ASC)
+                    .addAggregation(
+                            AggregationBuilders.dateHistogram("obw").field("date").interval(DateHistogram.Interval.DAY)
+                                    .subAggregation(AggregationBuilders.max("max").field("obw"))).execute().actionGet();
+            DateHistogram dh5min = (DateHistogram) response.getAggregations().get("obw");
+            Double index = 0.0;
+            Double count = 0.0;
+            for (Bucket b : dh5min.getBuckets()) {
+                Double value = ((SingleValue) b.getAggregations().iterator().next()).value();
+                if (Double.isInfinite(value) || Double.isNaN(value)) {
+                    continue;
+                }
+                count += value;
+                index++;
+                long time = b.getKeyAsDate().getMillis() - 8 * 1000 * 60 * 60;
+                if (time >= start) {
+                    Map<String, Object> point = new HashMap<>();
+                    point.put("obw_dp", (int) (count / index));
+                    for (int i = 0; i < 4; i++) {
+                        String id = name + "_" + (time + i * 1000 * 60 * 60 * 6);
+                        // String id = name + "_" + time;
+                        save(point, Constants.CDN_KC_BASE + "_" + DateUtils.yyyyMM(new DateTime(queryStart.getTimeInMillis())),
+                                "bandwidth", id);
+                    }
+                }
+            }
+        }
+    }
+
+    public boolean isAlarm(String ip, long start, long end) {
+
+        BoolQueryBuilder bool = QueryBuilders.boolQuery();
+        List<DetectRequest> ret = new ArrayList<DetectRequest>();
+        bool.must(QueryBuilders.rangeQuery("date").gte(start).lt(end));
+        bool.must(QueryBuilders.termQuery("remoteIp", ip));
+        for (int i = 0;; i++) {
+            SearchResponse response = client.prepareSearch(Constants.MONITOR_INDEX + "*").setQuery(bool).setFrom(i * 1000).setSize(1000)
+                    .addSort("date", SortOrder.ASC).get();
+            SearchHits searchHits = response.getHits();
+            for (SearchHit searchHit : searchHits) {
+                Map<String, Object> _map = new HashMap<String, Object>(searchHit.getSource());
+                DetectRequest node = new DetectRequest();
+                node.setCdnVendorId(_map.get("cdnVendorId").toString());
+                node.setSrcIp(_map.get("ip").toString());
+                node.setSrcIpInfo(_map.get("ipInfo").toString());
+                node.setDestIp(_map.get("remoteIp").toString());
+                node.setDestIpInfo(_map.get("remoteIpInfo").toString());
+                node.setHttpCode(_map.get("httpCode").toString());
+                node.setDnsip(_map.get("ldnsIp").toString());
+                ret.add(node);
+            }
+            if (searchHits.hits().length < 1000)
+                break;
+        }
+        if (ret.size() == 0) {
+            log.warn("ip:{} start:{}  end:{}  query_set is empty", ip, start, end);
+            return false;
+        }
+        int requestCount = ret.size();
+        int errorCount = 0;
+        int alarmThreshold = 5;
+        Map<String, Integer> errorCodeMap = Maps.newHashMap();
+        for (DetectRequest _node : ret) {
+            String errorCode = _node.getHttpCode();
+            if (!StringUtils.isNumeric(_node.getHttpCode())) {
+                log.info("wrong http code {}", _node.getHttpCode());
+                ++errorCount;
+                continue;
+            }
+            if (!errorCode.equalsIgnoreCase("200")) {
+                ++errorCount;
+                if (errorCodeMap.containsKey(errorCode)) {
+                    int count = errorCodeMap.get(errorCode);
+                    errorCodeMap.put(errorCode, new Integer(++count));
+                } else {
+                    errorCodeMap.put(errorCode, 0);
+                }
+            }
+        }
+        StringBuilder sb = new StringBuilder();
+        for (String error : errorCodeMap.keySet()) {
+            if (errorCodeMap.get(error) > 0) {
+                String msg = String.format("ip:%s_code:%s_count:%s", ip, error, errorCodeMap.get(error));
+                sb.append(msg + "\n");
+            }
+        }
+        if (StringUtils.isNotBlank(sb.toString())) {
+            SmsUtil.sendAlarm(sb.toString());
+        }
+        int currentRet = (errorCount / requestCount) * 10;
+        log.info("ip:{} start:{}  end:{}  requestCount:{} errorCount:{} currentRatio:{} isAlarm:{}", ip, start, end, requestCount,
+                errorCount, currentRet, currentRet >= alarmThreshold);
+        if (currentRet >= alarmThreshold) {
+            // SmsUtil.sendAlarm(ret.get(0));
+            return true;
+        }
+        return false;
+    }
+
+    public void checkEdgeCDN(long start, long end) {
+
+        BoolQueryBuilder bool = QueryBuilders.boolQuery();
+        bool.must(QueryBuilders.rangeQuery("date").gte(start).lt(end));
+        bool.mustNot(QueryBuilders.termQuery("httpCode", 200));
+        Map<String, Integer> count = new HashMap<String, Integer>();
+        for (int i = 0;; i++) {
+            SearchResponse response = client.prepareSearch(Constants.MONITOR_INDEX + "*").setQuery(bool).setFrom(i * 1000).setSize(1000)
+                    .addSort("date", SortOrder.ASC).addAggregation(AggregationBuilders.terms("remoteIp").field("remoteIp")).get();
+            SearchHits searchHits = response.getHits();
+            for (SearchHit searchHit : searchHits) {
+                Map<String, Object> source = new HashMap<String, Object>(searchHit.getSource());
+                String ip = (String) source.get("remoteIp");
+                if (count.containsKey(ip)) {
+                    count.put(ip, count.get(ip) + 1);
+                } else
+                    count.put(ip, 1);
+            }
+            log.info("totalHits:{} hits length:{}", searchHits.getTotalHits(), searchHits.hits().length);
+            if (searchHits.hits().length < 1000)
+                break;
+        }
+        log.info(count.toString());
+        DateTime endDatetime = new DateTime(end);
+        DateTime startDatetime = endDatetime.minusHours(1);
+        log.info("alarm starttime:{},endtime:{}", startDatetime, endDatetime);
+        for (String _ip : count.keySet()) {
+            if (this.isAlarm(_ip, startDatetime.getMillis(), endDatetime.getMillis())) {
+                log.info("ALARM IP:{}", _ip);
+            }
+        }
+    }
+
+    public void deleteAllData(String index, String type) {
+
+        for (int i = 0; i < Integer.MAX_VALUE; i++) {
+            SearchResponse response = client.prepareSearch(index).setTypes(type).setFrom(0).setSize(1000).get();
+            SearchHit[] hits = response.getHits().getHits();
+            for (SearchHit searchHit : hits) {
+                if (type.equals(searchHit.getType())) {
+                    DeleteRequest deleteRequest = new DeleteRequest();
+                    deleteRequest.index(searchHit.getIndex());
+                    deleteRequest.type(searchHit.getType());
+                    deleteRequest.id(searchHit.getId());
+                    client.delete(deleteRequest).actionGet();
+                } else {
+                    throw new RuntimeException("太诡异了");
+                }
+            }
+            if (hits.length < 1000)
+                break;
+        }
+    }
+
+    public void updateForecastToBandwidth(NodeMeta node, long start, long end) {
+        DateTime queryStart = new DateTime(start);
+        queryStart = queryStart.withMillisOfSecond(0).withSecondOfMinute(0).withMinuteOfHour(0).withHourOfDay(0);
+        BoolQueryBuilder bool = QueryBuilders.boolQuery();
+        bool.must(QueryBuilders.rangeQuery("date").gte(queryStart.getMillis()).lt(end));
+        bool.must(QueryBuilders.termQuery("name", node.getFullName()));
+        SearchResponse response = client
+                .prepareSearch(ESUtils.indicesByDateRange(queryStart.getMillis(), end, Constants.CDN_KC_BASE))
+                .setTypes("bandwidthforecast")
+                .setQuery(bool)
+                .setSize(0)
+                .addSort("date", SortOrder.ASC)
+                .addAggregation(
+                        AggregationBuilders.dateHistogram("bandwidth").field("date").interval(Interval.minutes(5))
+                                .subAggregation(AggregationBuilders.avg("avg").field("forecast"))).execute().actionGet();
+
+        DateHistogram bandWidthPerMin = (DateHistogram) response.getAggregations().get("bandwidth");
+        Set<Double> bandwidthSet = new TreeSet<Double>();
+        for (Bucket b : bandWidthPerMin.getBuckets()) {
+            Double value = ((SingleValue) b.getAggregations().iterator().next()).value();
+            if (Double.isInfinite(value) || Double.isNaN(value)) {
+                // TODO 判断为什么没数据 取zabbix数据程序异常 or 节点数据异常
+                continue;
+            }
+            bandwidthSet.add(value);
+        }
+        Double[] bandwidths = new Double[bandwidthSet.size()];
+        bandwidthSet.toArray(bandwidths);
+        double peek = bandwidths[bandwidths.length - 1];
+        double peek95 = bandwidths[(int) (bandwidths.length * 0.95)];
+        double lowLimit = node.getOutBandWidthLowerLimit() * node.getMaxBandwidthThreshold();
+        double upLimit = node.getOutBandWidthUpperLimit() * node.getMinBandwidthThreshold();
+
+        bool = QueryBuilders.boolQuery();
+        bool.must(QueryBuilders.rangeQuery("date").lt(end));
+        bool.must(QueryBuilders.termQuery("name", node.getFullName()));
+        SearchResponse response95peek = client
+                .prepareSearch(ESUtils.indicesByDateRange(queryStart.getMillis(), end, Constants.CDN_KC_BASE)).setTypes("bandwidth")
+                .addSort("date", SortOrder.DESC).setQuery(QueryBuilders.filteredQuery(bool, FilterBuilders.existsFilter("obw_m95p")))
+                .setSize(1).setFrom(0).execute().actionGet();
+        int m95p = (Integer) response95peek.getHits().hits()[0].getSource().get("obw_m95p");
+
+        for (Bucket b : bandWidthPerMin.getBuckets()) {
+            Double value = ((SingleValue) b.getAggregations().iterator().next()).value();
+            if (Double.isInfinite(value) || Double.isNaN(value)) {
+                // TODO 判断为什么没数据 取zabbix数据程序异常 or 节点数据异常
+                continue;
+            }
+            if (b.getKeyAsNumber().longValue() >= start) {
+                Map<String, Object> content = new HashMap<String, Object>();
+                content.put("date", b.getKeyAsNumber().longValue());
+                content.put("name", node.getFullName());
+                content.put("forecast", value);
+                content.put("lowLimitCorrect", lowLimit * value / peek95 - value);
+                content.put("upLimitCorrect", upLimit * value / peek - value);
+                content.put("m95peekCorrect", m95p * value / peek95 - value);
+                save(content, Constants.CDN_KC_BASE + "_" + DateUtils.yyyyMM(new DateTime(b.getKeyAsNumber().longValue())), "bandwidth",
+                        node.getFullName() + "_" + b.getKeyAsNumber().longValue());
+            }
+        }
+    }
+
+    /**
+     * 获取zabbix带宽数据
+     * 
+     * @param node
+     *            节点
+     * @param minute
+     *            按多少分钟统计
+     * @param start
+     *            开始时间
+     * @param end
+     *            结束时间
+     * @return
+     */
+    public List<Map<String, Long>> loadZabbixBandWidth(NodeMeta node, int minute, long start, long end) {
+        FilterBuilder filter = andFilter(rangeFilter("date").from(start).to(end));
+        SearchResponse response = client
+                .prepareSearch(ESUtils.indicesByDateRange(start, end))
+                .setTypes("base")
+                .setQuery(QueryBuilders.filteredQuery(QueryBuilders.matchAllQuery(), filter))
+                .setSize(0)
+                .addAggregation(
+                        AggregationBuilders.dateHistogram("bw").field("date").order(Order.KEY_DESC).interval(Interval.minutes(minute))
+                                .subAggregation(AggregationBuilders.avg("avg").field(node.getOutBandWidthOriField()))).execute()
+                .actionGet();
+        DateHistogram aggs = (DateHistogram) response.getAggregations().get("bw");
+        List<Map<String, Long>> bws = new ArrayList<Map<String, Long>>();
+        for (Bucket b : aggs.getBuckets()) {
+            Double value = ((SingleValue) b.getAggregations().iterator().next()).value();
+            if (Double.isInfinite(value) || Double.isNaN(value)) {
+                // TODO 判断为什么没数据 取zabbix数据程序异常 or 节点数据异常
+                continue;
+            }
+            DateTime time = b.getKeyAsDate();
+            Map<String, Long> point = new HashMap<>();
+            point.put("obw", value.longValue());
+            point.put("date", time.getMillis());
+            bws.add(point);
+        }
+        return bws;
+    }
+}
