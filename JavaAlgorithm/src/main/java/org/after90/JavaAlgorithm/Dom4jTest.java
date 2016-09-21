@@ -1,6 +1,5 @@
 package org.after90.JavaAlgorithm;
 
-import java.io.FileWriter;
 import java.io.StringWriter;
 
 import org.dom4j.Document;
@@ -20,10 +19,10 @@ public class Dom4jTest {
 			of.setEncoding("UTF-8");
 			Element root = document.addElement("root");
 
-			Element author1 = root.addElement("author").addAttribute("name", "James汉字").addAttribute("location", "UK")
+			root.addElement("author").addAttribute("name", "James汉字").addAttribute("location", "UK")
 					.addText("James Strachan");
 
-			Element author2 = root.addElement("author").addAttribute("name", "Bob").addAttribute("location", "US")
+			root.addElement("author").addAttribute("name", "Bob").addAttribute("location", "US")
 					.addText("Bob McWhirter");
 			StringWriter sw = new StringWriter();
 			XMLWriter writer = new XMLWriter(sw, of);
