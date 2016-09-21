@@ -33,37 +33,40 @@ public class IndexManager {
 								// 跳过工作计划
 								continue;
 							}
-							FileReader reader = null;
-							BufferedReader in = null;
-							try {
-								reader = new FileReader(fileOrg);
-								in = new BufferedReader(reader);
-								String strLine = null;
-								while ((strLine = in.readLine()) != null) {
-									if (strLine.startsWith("#+TITLE:")) {
-										String strTitle = strLine.replaceAll("\\#\\+TITLE:", "").trim();
-										String strFileHtmlName = fileOrg.getName().substring(0,
-												fileOrg.getName().length() - 3) + "html";
-										out.write("[[./" + strPathName + "/" + strFileHtmlName + "][" + strTitle + "]]");
-										out.newLine();
-										out.newLine();
+							if (fileOrg.getName().endsWith("org")) {
+								FileReader reader = null;
+								BufferedReader in = null;
+								try {
+									reader = new FileReader(fileOrg);
+									in = new BufferedReader(reader);
+									String strLine = null;
+									while ((strLine = in.readLine()) != null) {
+										if (strLine.startsWith("#+TITLE:")) {
+											String strTitle = strLine.replaceAll("\\#\\+TITLE:", "").trim();
+											String strFileHtmlName = fileOrg.getName().substring(0,
+													fileOrg.getName().length() - 3) + "html";
+											out.write("[[./" + strPathName + "/" + strFileHtmlName + "][" + strTitle
+													+ "]]");
+											out.newLine();
+											out.newLine();
+										}
 									}
-								}
-							} catch (Exception e) {
-								log.error("BufferedReader or FileReader err", e);
-							} finally {
-								if (in != null) {
-									try {
-										in.close();
-									} catch (Exception e) {
-										log.error("", e);
+								} catch (Exception e) {
+									log.error("BufferedReader or FileReader err", e);
+								} finally {
+									if (in != null) {
+										try {
+											in.close();
+										} catch (Exception e) {
+											log.error("", e);
+										}
 									}
-								}
-								if (reader != null) {
-									try {
-										reader.close();
-									} catch (Exception e) {
-										log.error("", e);
+									if (reader != null) {
+										try {
+											reader.close();
+										} catch (Exception e) {
+											log.error("", e);
+										}
 									}
 								}
 							}
