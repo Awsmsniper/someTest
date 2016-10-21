@@ -25,7 +25,7 @@ object findMac {
       parts(19)
     }
     }.distinct()
-    authLogMac.saveAsTextFile("/user/zhaogj/authLogMac")
+    //authLogMac.saveAsTextFile("/user/zhaogj/authLogMac")
 
     val netLog = sc.textFile("/user/aWifi/netLog")
     val netLogMac = netLog.filter { x => {
@@ -41,14 +41,14 @@ object findMac {
       parts(15)
     }
     }.distinct()
-    netLogMac.saveAsTextFile("/user/zhaogj/netLogMac")
+    //netLogMac.saveAsTextFile("/user/zhaogj/netLogMac")
 
     val netIdLog = sc.textFile("/user/aWifi/netIdLog")
     val netIdLogMac = netIdLog.filter { x => {
       var result = false;
       val parts = x.split("\t")
-      if (parts.length == 9) {
-        if (parts(5).length == 21) {
+      if (parts.length == 8) {
+        if (parts(0).length == 17 && parts(0).split("-").length == 6) {
           result = true
         }
       }
@@ -56,9 +56,11 @@ object findMac {
     }
     }.map { x => {
       val parts = x.split("\t")
-      parts(5).substring(9, 11) + "-" + parts(5).substring(11, 13) + "-" + parts(5).substring(13, 15) + "-" + parts(5).substring(15, 17) + "-" + parts(5).substring(17, 19) + "-" + parts(5).substring(19, 21)
+      parts(0)
     }
     }.distinct()
+
     netIdLogMac.saveAsTextFile("/user/zhaogj/netIdLogMac")
   }
+
 }
