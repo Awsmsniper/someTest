@@ -36,6 +36,12 @@
             <artifactId>spark-core_2.10</artifactId>
             <version>1.5.0-cdh5.5.0</version>
         </dependency>
+        <!-- MLLib -->
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-mllib_2.10</artifactId>
+            <version>1.5.0-cdh5.5.0</version>
+        </dependency>
 
         <!--fix snappy bug in 1.0.4.1-->
         <dependency>
@@ -43,6 +49,7 @@
             <artifactId>snappy-java</artifactId>
             <version>1.0.5</version>
         </dependency>
+
     </dependencies>
     <build>
         <sourceDirectory>src/main/scala</sourceDirectory>
