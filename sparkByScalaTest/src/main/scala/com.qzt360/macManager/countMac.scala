@@ -1,4 +1,4 @@
-package com.qzt360
+package com.qzt360.macManager
 
 import org.apache.spark.{SparkConf, SparkContext}
 
