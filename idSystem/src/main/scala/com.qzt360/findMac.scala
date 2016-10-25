@@ -9,7 +9,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 object findMac {
   def main(args: Array[String]): Unit = {
 
-    val conf = new SparkConf().setAppName("findMac").setMaster("local[*]")
+    val conf = new SparkConf().setAppName("findMac")//.setMaster("local[*]")
     val sc = new SparkContext(conf)
 
     //备案系统中的mac
@@ -65,7 +65,7 @@ object findMac {
     //卡口平台
     // /user/wjpt/20161022/tmac_1477065600_b8x3ak.ok
 
-    val tMacLog = sc.textFile("/user/wjpt/*/tmac_*")
+    val tMacLog = sc.textFile("/user/wjpt/*/tmac_*") union sc.textFile("har:///user/wjpt/*.har/tmac_*")
     val tMacMac = tMacLog.filter { x => {
       var result = false;
       val parts = (x + "\tmark").split("\t")
@@ -104,7 +104,7 @@ object findMac {
     //网监平台目录中不只是企智通产生的数据
 
     // /user/wjpt/20161022/email_1477065600_htgbft.ok
-    val emailLog = sc.textFile("/user/wjpt/*/email_*")
+    val emailLog = sc.textFile("/user/wjpt/*/email_*") union sc.textFile("har:///user/wjpt/*.har/email_*")
     val emailMac = emailLog.filter { x => {
       var result = false;
       val parts = (x + "\tmark").split("\t")
@@ -122,7 +122,7 @@ object findMac {
     }
 
     // /user/wjpt/20161022/im_1477065600_i4a9km.ok
-    val imLog = sc.textFile("/user/wjpt/*/im_*")
+    val imLog = sc.textFile("/user/wjpt/*/im_*") union sc.textFile("har:///user/wjpt/*.har/im_*")
     val imMac = imLog.filter { x => {
       var result = false;
       val parts = (x + "\tmark").split("\t")
@@ -140,7 +140,7 @@ object findMac {
     }
 
     // /user/wjpt/20161022/weibo_1477065600_84lksv.ok
-    val weiboLog = sc.textFile("/user/wjpt/*/weibo_*")
+    val weiboLog = sc.textFile("/user/wjpt/*/weibo_*") union sc.textFile("har:///user/wjpt/*.har/weibo_*")
     val weiboMac = weiboLog.filter { x => {
       var result = false;
       val parts = (x + "\tmark").split("\t")
@@ -159,7 +159,7 @@ object findMac {
 
     // /user/wjpt/20161022/netidinfo_1477065600_989b23.ok
 
-    val netIdLogwj = sc.textFile("/user/wjpt/*/netidinfo_*")
+    val netIdLogwj = sc.textFile("/user/wjpt/*/netidinfo_*") union sc.textFile("har:///user/wjpt/*.har/netidinfo_*")
     val netIdMacwj = netIdLogwj.filter { x => {
       var result = false;
       val parts = (x + "\tmark").split("\t")

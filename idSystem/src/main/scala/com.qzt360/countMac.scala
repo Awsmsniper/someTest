@@ -7,7 +7,7 @@ import org.apache.spark.{SparkConf, SparkContext}
   */
 object countMac {
   def main(args: Array[String]): Unit = {
-    val conf = new SparkConf().setAppName("findMac").setMaster("local[*]")
+    val conf = new SparkConf().setAppName("findMac")//.setMaster("local[*]")
     val sc = new SparkContext(conf)
     val baMac = sc.textFile("/user/zhaogj/output/baMac").cache()
     val kkMac = sc.textFile("/user/zhaogj/output/kkMac").cache()

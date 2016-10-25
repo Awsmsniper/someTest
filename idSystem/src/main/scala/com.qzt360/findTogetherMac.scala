@@ -10,17 +10,39 @@ import org.apache.spark.{SparkConf, SparkContext}
   */
 object findTogetherMac {
   def main(args: Array[String]): Unit = {
-    val conf = new SparkConf().setAppName("findTogetherMac").setMaster("local[*]")
+    val conf = new SparkConf().setAppName("findTogetherMac")//.setMaster("local[*]")
     val sc = new SparkContext(conf)
-    val tMacLog = sc.textFile("/user/wjpt/201610*/tmac_*")
+    val tMacLog = sc.textFile("/user/wjpt/2016101*/tmac_*")
     //val tMacLog = sc.textFile("/Users/zhaogj/tmp/wjpt/tmac_1477065600_b8x3ak.ok")
+
+    //要过滤掉只在一个设备上出现的MAC
+    val macOkMap = tMacLog.filter { x => {
+      var result = false;
+      val parts = (x + "\tmark").split("\t")
+      if (parts.length == 18) {
+        if (parts(0).length == 17 && parts(0).split("-").length == 6) {
+          result = true
+        }
+      }
+      result
+    }
+    }.map { x => {
+      val parts = (x + "\tmark").split("\t")
+      parts(0) + "\t" + parts(14)
+    }
+    }.distinct().map(x => {
+      val parts = x.split("\t")
+      (parts(0), 1)
+    }).reduceByKey(_ + _).filter { case (mac, eqpCount) => eqpCount > 1 }.collectAsMap()
 
     val macHourEqp = tMacLog.filter { x => {
       var result = false;
       val parts = (x + "\tmark").split("\t")
       if (parts.length == 18) {
         if (parts(0).length == 17 && parts(0).split("-").length == 6) {
-          result = true
+          if (!"None".equals(macOkMap.get(parts(0)))) {
+            result = true
+          }
         }
       }
       result
