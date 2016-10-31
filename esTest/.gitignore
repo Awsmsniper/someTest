@@ -1,3 +1,4 @@
 /target/
 /.idea/
 esTest.iml
+dependency-reduced-pom.xml
