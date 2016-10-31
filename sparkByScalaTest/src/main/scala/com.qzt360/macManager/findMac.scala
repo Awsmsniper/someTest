@@ -13,6 +13,10 @@ object findMac {
   def main(args: Array[String]): Unit = {
     val conf = new SparkConf().setAppName("findMac")
     val sc = new SparkContext(conf)
+    //解决读入文件是大量小文件的效率问题
+    //    sc.hadoopConfiguration.set("dfs.replication", "1")
+    //    sc.hadoopConfiguration.setLong("mapreduce.input.fileinputformat.split.maxsize", 1024 * 1024 * 128)
+    //    sc.hadoopConfiguration.setLong("mapreduce.input.fileinputformat.split.minsize", 1024 * 1024 * 128)
 
     //备案系统中的mac
     val authLog = sc.textFile("/user/aWifi/authLog")
