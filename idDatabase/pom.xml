@@ -6,7 +6,7 @@
 
     <groupId>com.qzt360</groupId>
     <artifactId>idDatabase</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.1</version>
     <packaging>jar</packaging>
 
     <name>idDatabase</name>
@@ -75,6 +75,12 @@
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>19.0</version>
+        </dependency>
+        <!-- Mail -->
+        <dependency>
+            <groupId>javax.mail</groupId>
+            <artifactId>mail</artifactId>
+            <version>1.4.7</version>
         </dependency>
     </dependencies>
     <!-- Package as an executable jar -->

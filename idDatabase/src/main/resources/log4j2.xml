@@ -8,8 +8,8 @@
 		<Routing name="Routing">
 			<Routes pattern="$${sd:type}">
 				<Route>
-					<RollingFile name="RollingFile" fileName="./idDatabaseLog.txt"
-						filePattern="./idDatabaseLog-%i.txt.gz">
+					<RollingFile name="RollingFile" fileName="./logIdDatabase.txt"
+						filePattern="./logIdDatabase-%i.txt.gz">
 						<PatternLayout>
 							<pattern>[%d{yyyy-MM-dd HH:mm:ss.SSS}][%p][%l]-%m%n</pattern>
 						</PatternLayout>
@@ -25,7 +25,7 @@
 	<Loggers>
 		<!-- 全局配置 -->
 		<Root level="INFO">
-			<AppenderRef ref="Console" />
+			<AppenderRef ref="Routing" />
 		</Root>
 	</Loggers>
 </Configuration>
