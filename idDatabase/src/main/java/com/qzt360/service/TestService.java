@@ -15,6 +15,6 @@ public class TestService {
     private ESRepository es;
 
     public void doTest() {
-        log.info("doTest read count:{}", es.nCount);
+        log.info("doTest read count:{}");//, es.nCount);
     }
 }
