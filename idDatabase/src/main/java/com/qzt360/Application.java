@@ -1,5 +1,6 @@
 package com.qzt360;
 
+import com.qzt360.component.JVMComponent;
 import com.qzt360.service.ESService;
 import com.qzt360.service.IDService;
 import com.qzt360.service.LogService;
@@ -28,6 +29,9 @@ public class Application {
     @Autowired
     private IDService idService;
 
+    @Autowired
+    private JVMComponent jvm;
+
     public static void main(String[] args) {
         SpringApplication.run(Application.class, args);
         log.info("idDatabase starting success");
@@ -43,6 +47,7 @@ public class Application {
     @Scheduled(fixedRate = 1000 * 60 * 1)
     private void syslog2ES() {
         logService.sysLog2ES();
+        jvm.outputJVMInfo();
     }
 
     //每天凌晨2天执行一次
