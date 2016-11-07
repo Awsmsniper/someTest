@@ -100,7 +100,7 @@ public class FuncUtil {
     //取得内存使用情况
     public static String getMemoryStatus() {
         StringBuffer sb = new StringBuffer();
-        sb.append("jvm内存使用情况\n最大可用内存:");
+        sb.append("\njvm内存使用情况\n最大可用内存:");
         sb.append(Runtime.getRuntime().maxMemory());
         sb.append("\n当前JVM空闲内存:");
         sb.append(Runtime.getRuntime().freeMemory());

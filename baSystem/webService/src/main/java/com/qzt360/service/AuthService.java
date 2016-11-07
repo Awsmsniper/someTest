@@ -41,7 +41,6 @@ public class AuthService {
             sb.append(entry.getKey());
             sb.append(", 最近活跃时间:");
             sb.append(FuncUtil.Long2StrTime(entry.getValue()));
-            sb.append("\n");
         }
         if (sb.length() > 0) {
             log.info(sb.toString());
