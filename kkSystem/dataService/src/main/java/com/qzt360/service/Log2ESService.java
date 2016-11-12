@@ -5,7 +5,9 @@ import com.qzt360.repository.ESRepository;
 import com.qzt360.utils.FuncUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.common.geo.GeoPoint;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
@@ -23,6 +25,14 @@ import java.util.concurrent.locks.ReentrantLock;
 public class Log2ESService {
     @Autowired
     private ESRepository es;
+
+    @Value("${es.index.strTmacLogIndexPre}")
+    private String strTmacLogIndexPre;
+
+    @Value("${es.index.strTmacLogType}")
+    private String strTmacLogType;
+
+
     private boolean isRunning = false;
     private Lock statLock = new ReentrantLock();
 
@@ -54,10 +64,12 @@ public class Log2ESService {
         log.info("找到{}个文件", fileTMacLogPath.listFiles().length);
         for (File fileTMac : fileTMacLogPath.listFiles()) {
             log.info("处理文件:{}", fileTMac.getPath());
-            int nLine = 0;
+
             BufferedReader br = null;
             try {
                 br = new BufferedReader(new InputStreamReader(new FileInputStream(fileTMac.getPath())));
+                long lStart = System.currentTimeMillis();
+                int nLine = 0;
                 String strLine = null;
                 while ((strLine = br.readLine()) != null) {
                     nLine++;
@@ -70,7 +82,7 @@ public class Log2ESService {
                             json.put("strTssidList", astrLine[2].trim());
                             json.put("lCollectTime", Integer.parseInt(astrLine[3].trim()));
                             long lCollectTime = 1000L * Long.parseLong(astrLine[3].trim());
-                            String strIndex = "zhaogj_tmac_" + FuncUtil.Long2StrTime(lCollectTime, "yyyy_MM_dd");
+                            String strIndex = strTmacLogIndexPre + FuncUtil.Long2StrTime(lCollectTime, "yyyyMMdd");
                             json.put("dtCollectTime", new Date(lCollectTime));
                             json.put("strTfieldIntensity", astrLine[4].trim());
                             json.put("strIdType", astrLine[5].trim());
@@ -85,8 +97,12 @@ public class Log2ESService {
                             json.put("strDeviceCode", astrLine[14].trim());
                             json.put("strDeviceLongitude", astrLine[15].trim());
                             json.put("strDeviceLatitude", astrLine[16].trim());
+                            //处理经纬度
+                            double doubleLat = Double.parseDouble(astrLine[16].trim());
+                            double doubleLng = Double.parseDouble(astrLine[15].trim());
+                            json.put("geopLocation", new GeoPoint(doubleLat, doubleLng));
                             es.bulkProcessor.add(new IndexRequest(strIndex,
-                                    "type",
+                                    strTmacLogType,
                                     fileTMac.getName() + "_" + nLine).source(json));
                         } catch (Exception e) {
                             log.warn("时间转换失败:{}", astrLine[3].trim());
@@ -95,6 +111,8 @@ public class Log2ESService {
                         log.warn("字段个数不对:{}", astrLine.length);
                     }
                 }
+                long lEnd = System.currentTimeMillis();
+                log.info("处理速度:{}条/秒,{}M/秒", (1000 * nLine) / (lEnd - lStart), (1000L * fileTMac.length() / 1024L / 1024L) / (lEnd - lStart));
             } catch (Exception e) {
                 log.error("", e);
             } finally {
@@ -108,5 +126,12 @@ public class Log2ESService {
             }
             fileTMac.renameTo(new File("/home/qzt_java/kkSystemDataService/data/tmac_bak/" + fileTMac.getName()));
         }
+    }
+
+    /**
+     * 从hdfs中读取，写入到es中，用于处理历史数据，实际工程中不启动这个程序
+     */
+    public void tmacLogFromHdfs2Es() {
+
     }
 }

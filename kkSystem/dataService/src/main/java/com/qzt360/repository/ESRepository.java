@@ -101,6 +101,14 @@ public class ESRepository {
                                                             .map())
                                             .map())
                                     .map(),
+                            new MapBuilder<String, Object>().put("geo_point_tpl",
+                                    new MapBuilder<String, Object>().put("match", "geop*")
+                                            .put("mapping",
+                                                    new MapBuilder<String, Object>().put("type", "geo_point")
+                                                            .put("index", "not_analyzed").put("doc_values", true)
+                                                            .map())
+                                            .map())
+                                    .map(),
                             new MapBuilder<String, Object>().put("all_tpl",
                                     new MapBuilder<String, Object>().put("match", "*").put("mapping",
                                             new MapBuilder<String, Object>().put("type", "{dynamic_type}")
