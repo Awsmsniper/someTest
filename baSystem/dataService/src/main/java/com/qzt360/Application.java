@@ -23,6 +23,7 @@ public class Application {
 
     public static void main(String[] args) {
         log.info("dataService is starting...");
+
         SpringApplication.run(Application.class);
         log.info("dataService starting success");
     }
