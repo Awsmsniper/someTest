@@ -12,20 +12,25 @@ object makeTrack {
     val sc = new SparkContext(conf)
     val tMacLog = sc.textFile("/user/wfpt/qzt/tmac_*")
     //val tMacLog = sc.textFile("/user/wfpt/qzt/tmac_20161120")
+
     tMacLog.filter { x => {
-      var result = false;
       val parts = (x + "\tmark").split("\t")
+      //字段数合法
       if (parts.length == 18) {
-        if (parts(0).length == 17 && parts(0).split("-").length == 6 && parts(8).length == 17 && parts(8).split("-").length == 6) {
-          result = true
+        //采集到的mac合法
+        if (parts(0).length == 17 && parts(0).split("-").length == 6) {
+          true
+        } else {
+          false
         }
+      } else {
+        false
       }
-      result
     }
     }.map { x => {
       val parts = (x + "\tmark").split("\t")
-      //strApMac,strMac,strTime
-      parts(8) + "," + parts(0) + "," + parts(3)
+      //strEqpId,strMac,strTime
+      parts(14) + "," + parts(0) + "," + parts(3)
     }
     }.distinct().saveAsTextFile("/user/zhaogj/output/track")
   }
