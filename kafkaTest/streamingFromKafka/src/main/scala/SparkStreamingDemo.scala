@@ -3,7 +3,7 @@ import org.apache.spark.streaming.{Seconds, StreamingContext}
 
 /**
   * Created by zhaogj on 18/12/2016.
-  * nc -lk 9999
+  * use cmd "nc -lk 9999" send message
   */
 object SparkStreamingDemo {
   def main(args: Array[String]): Unit = {
