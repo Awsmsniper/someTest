@@ -17,9 +17,12 @@ object ConsumerDemo {
     ssc.checkpoint("checkpoint")
 
     val topicMap = topics.split(",").map((_, numThreads.toInt)).toMap
-    val lines = KafkaUtils.createStream(ssc, zkQuorum, group, topicMap).map(_._2)
-    val words = lines.flatMap(_.split(" "))
-    words.print()
+    val stream = KafkaUtils.createStream(ssc, zkQuorum, group, topicMap)
+    stream.print()
+    //val lines = KafkaUtils.createStream(ssc, zkQuorum, group, topicMap).map(_._2)
+    //lines.print()
+    //val words = lines.flatMap(_.split(" "))
+    //words.print()
 //    val wordCounts = words.map(x => (x, 1L))
 //      .reduceByKeyAndWindow(_ + _, _ - _, Minutes(2), Seconds(2), 2)
 //    wordCounts.print()
