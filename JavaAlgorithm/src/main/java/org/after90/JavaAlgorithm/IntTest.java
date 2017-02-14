@@ -6,6 +6,6 @@ package org.after90.JavaAlgorithm;
 public class IntTest {
     public static void main(String[] args) {
         int nTmp = 2147483647;
-        System.out.println(nTmp++);
+        System.out.println(nTmp+1);
     }
 }
